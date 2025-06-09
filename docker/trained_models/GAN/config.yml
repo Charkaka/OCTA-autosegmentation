@@ -6,7 +6,7 @@ General:
     compute_identity: false
     compute_identity_seg: true
     model_d:
-      name: patchGAN70x70
+      name: patchGAN70x70 
     model_g:
       name: resnetGenerator9
     model_s:
@@ -43,7 +43,7 @@ Test:
   batch_size: 1
   data:
     background:
-      files: /home/OCTA-seg/datasets/background_images/**/*.png
+      files: /home/OCTA-seg/generation/background_images/**/*.png
     real_A:
       files: /var/generation/vessel_graphs/**/*.csv
   data_augmentation:
@@ -54,7 +54,8 @@ Test:
     name: LoadImaged
   - allow_missing_keys: true
     image_resolutions:
-    - [304,304]
+    # - [304,304] #for 304x304
+    - [640,640] #for 640x640
     keys:
     - real_A
     name: LoadGraphAndFilterByRandomRadiusd

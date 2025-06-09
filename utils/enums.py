@@ -24,3 +24,4 @@ class Phase(BetterEnum):
 class Task(BetterEnum):
     VESSEL_SEGMENTATION = "ves-seg"
     GAN_VESSEL_SEGMENTATION = "gan-ves-seg"
+    CYCLEGAN = "cyclegan"

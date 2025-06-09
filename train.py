@@ -30,9 +30,10 @@ def train(args: argparse.Namespace, config: dict[str,dict]):
         if phase not in config:
             continue
         for k in config[phase]["data"].keys():
-            if not config[phase]["data"][k].get("split", ".txt").endswith(".txt"):
+            split_val = config[phase]["data"][k].get("split")
+            if split_val is not None and isinstance(split_val, str) and not split_val.endswith(".txt"):
                 assert bool(args.split), "You have to specify a split!"
-                config[phase]["data"][k]["split"] = config[phase]["data"][k]["split"] + args.split + ".txt"
+                config[phase]["data"][k]["split"] = split_val + args.split + ".txt"
 
     max_epochs = config[Phase.TRAIN]["epochs"]
     val_interval = config[Phase.TRAIN].get("val_interval") or 1

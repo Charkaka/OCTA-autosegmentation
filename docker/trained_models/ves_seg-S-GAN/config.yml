@@ -34,7 +34,7 @@ Test:
   batch_size: 1
   data:
     image:
-      files: /var/dataset/**/*.png
+      files: /var/OCTA500/images/**/*.png
   data_augmentation:
   - image_only: true
     keys:
@@ -85,4 +85,4 @@ Test:
     - min_size: 128
       name: RemoveSmallObjects
   save_comparisons: false
-  save_dir: /var/segmented
+  save_dir: /var/OCTA500/labels

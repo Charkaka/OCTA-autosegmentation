@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--source_dir', type=str, required=True)
     parser.add_argument('--out_dir', type=str, required=True)
-    parser.add_argument('--resolution', help="The number of pixels for every dimension of the final image or volume seperated by comma.", type=str, default='1216,1216,16')
+    parser.add_argument('--resolution', help="The number of pixels for every dimension of the final image or volume seperated by comma.", type=str, default='640,640,16')
     parser.add_argument('--save_2d', action='store_true', help="Save 2d image.")
     parser.add_argument('--no_save_2d', action="store_false", dest="save_2d", help="Do not save 2d image.")
     parser.add_argument('--save_3d', help="Save 3d volume.", action="store_true")
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     assert args.mip_axis in [0,1,2], "The axis must be '0' (x), '1' (y) or '2' (z)."
     assert args.save_3d or args.save_2d, "You must either activate saving the 2D image or the 3D volume."
 
-    os.makedirs(args.out_dir, exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True) 
 
     if args.save_2d:
         if len(resolution)==3:
@@ -92,8 +92,9 @@ if __name__ == "__main__":
         if args.save_2d:
             img, _ = rasterize_forest(f, img_res, args.mip_axis)
             if args.binarize:
-                img[img<0.1]=0
-                Image.fromarray(img.astype(np.uint8)).convert("1").save(os.path.join(args.out_dir, name+"_label.png"))
+                threshold = 127  # or another value in [76, 255]
+                img_bin = (img >= threshold).astype(np.uint8) * 255  # 0 or 255 
+                Image.fromarray(img_bin).save(os.path.join(args.out_dir, name+"_label.png"))
             else:
                 Image.fromarray(img.astype(np.uint8)).save(os.path.join(args.out_dir, name+".png"))
             if args.max_dropout_prob>0:

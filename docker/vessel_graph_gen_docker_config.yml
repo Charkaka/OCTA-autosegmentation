@@ -1,7 +1,7 @@
 ---
 Greenhouse:
   SimulationSpace:
-    no_voxel_x: 1
+    no_voxel_x: 1 
     no_voxel_y: 1
     no_voxel_z: 0.0131
   d: 0.1
@@ -47,7 +47,9 @@ Greenhouse:
       delta_sigma: 0.02
 output:
   directory: /var/generation/vessel_graphs
-  image_scale_factor: 304
+  # image_scale_factor: 304
+  #for 640x640 images
+  image_scale_factor: 640
   save_trees: true
   save_3D_volumes: null
   save_2D_image: true

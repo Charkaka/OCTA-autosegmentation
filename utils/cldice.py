@@ -1,6 +1,5 @@
 # Code from https://github.com/jocpae/clDice
-
-from skimage.morphology import skeletonize, skeletonize_3d
+from skimage.morphology import skeletonize
 import numpy as np
 
 def cl_score(v, s):
@@ -9,7 +8,7 @@ def cl_score(v, s):
     Args:
         v ([bool]): [image]
         s ([bool]): [skeleton]
-
+ 
     Returns:
         [float]: [computed skeleton volume intersection]
     """

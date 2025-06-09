@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 import torch
 import os
@@ -11,6 +12,7 @@ from data.image_dataset import get_dataset, get_post_transformation
 
 from utils.visualizer import plot_sample, plot_single_image, DynamicDisplay
 from utils.enums import Phase
+from utils.metrics import MetricsManager
 
 from rich.live import Live
 from rich.progress import Progress, TimeElapsedColumn
@@ -21,7 +23,7 @@ group = Group()
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
-parser.add_argument('--epoch', type=str, default="best")
+parser.add_argument('--epoch', type=str, default="5")
 parser.add_argument('--num_samples', type=int, default=9999999)
 parser.add_argument('--num_workers', type=int, default=None, help="Number of cpu cores used for dataloading. By, use half of the available cores.")
 args = parser.parse_args()
@@ -41,6 +43,7 @@ if config["General"].get("seed") is not None:
 
 inference_suffix = "_"+config["General"]["inference"] if "inference" in config["General"] else ""
 save_dir = config[Phase.TEST].get("save_dir") or config["Output"]["save_dir"]+"/test"
+print(f"Saving test results to {save_dir}")
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -81,3 +84,6 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
                 if config["Output"].get("save_comparisons"):
                     plot_sample(save_dir, test_mini_batch[input_key][0], outputs["prediction"][0], None, test_mini_batch[f"{input_key}_path"][0], suffix=f"{inference_mode}_{image_name}", full_size=True)
                 progress.advance(task_id=0)
+
+    
+

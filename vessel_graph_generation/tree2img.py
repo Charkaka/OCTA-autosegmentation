@@ -102,8 +102,9 @@ def rasterize_forest(forest: list[dict],
         colors="w"
     ax.add_collection(collections.LineCollection(edges, linewidths=radii, colors=colors, antialiaseds=True, capstyle="round"))
     figure.canvas.draw()
-    data = np.frombuffer(figure.canvas.tostring_rgb(), dtype=np.uint8)
-    img = data.reshape(figure.canvas.get_width_height()[::-1] + (3,))
+    data = np.frombuffer(figure.canvas.tostring_argb(), dtype=np.uint8)
+    data = data.reshape((int(no_pixels_y), int(no_pixels_x), 4))  # RGBA, dynamic shape
+    img = data.reshape(figure.canvas.get_width_height()[::-1] + (4,))  # Convert to HxWx4
     plt.close(figure)
 
     if colorize:
