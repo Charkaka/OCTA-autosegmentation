@@ -234,7 +234,7 @@ class LoadGraphAndFilterByRandomRadiusd(MapTransform):
     """
     Given a graph csv file, only load edges with radius larger than the given threshold. Then, turn the graph into a grayscale image of the given shape.
     """
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, image_resolutions=[[304,304]], min_radius=[0], max_dropout_prob=0, MIP_axis = 2) -> None:
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, image_resolutions=[[640,640]], min_radius=[0], max_dropout_prob=0, MIP_axis = 2) -> None:
         super().__init__(keys, allow_missing_keys)
         self.min_radius = min_radius
         self.image_resolutions = image_resolutions

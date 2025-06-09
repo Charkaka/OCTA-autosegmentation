@@ -53,7 +53,9 @@ Train:
         - real_A
         - real_A_seg
       image_resolutions: 
-        - [304,304] # for 304x304 images
+        # - [304,304] # for 304x304 images
+        # - [1216,1216]
+        - [640,640] # for 640x640 images
         - [1216,1216]
       min_radius: [0,0]
       max_dropout_prob: 0.02
@@ -230,6 +232,7 @@ Test:
         - real_A
       image_resolutions: 
         - [304,304]
+        - [640,640] # for 640x640 images
       allow_missing_keys: true
     - name: ScaleIntensityd
       keys:

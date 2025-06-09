@@ -8,12 +8,12 @@ RUN apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6
 
 
 # Copy repository files to image directory
-COPY . /home/OCTA-seg/
+COPY requirements.txt /home/OCTA-seg/requirements.txt
 
 # Install dependencies
 RUN pip install -r /home/OCTA-seg/requirements.txt
 
 # RUN chmod 755 /home/OCTA-seg/dockershell.sh
-RUN echo "Successfully build image!"
 
-ENTRYPOINT ["/home/OCTA-seg/docker/dockershell.sh"]
+# ENTRYPOINT ["/home/OCTA-seg/docker/dockershell.sh"]
+CMD ["tail -f /dev/null"]

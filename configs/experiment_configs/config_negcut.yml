@@ -61,7 +61,8 @@ Train:
       keys:
         - real_A
       image_resolutions: 
-        - [304,304] # for 304x304 images
+        # - [304,304] # for 304x304 images
+        - [640,640] # for 640x640 images
       min_radius: [0,0]
       max_dropout_prob: 0.02
       # radius_range: [0.0001, 0.0015]
@@ -156,7 +157,8 @@ Test:
       keys:
         - real_A
       image_resolutions: 
-        - [304,304]
+        # - [304,304]
+        - [640,640]
       allow_missing_keys: true
     - name: ScaleIntensityd
       keys:

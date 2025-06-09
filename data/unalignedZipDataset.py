@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 from monai.transforms import Compose
 import random
 from utils.enums import Phase
-
+ 
 class UnalignedZipDataset(Dataset):
     """
     Manages the dateset for the gan_ves_seg Task.
@@ -56,5 +56,5 @@ class UnalignedZipDataset(Dataset):
         if self.background is not None:
             data["background"] = self.background[random.randint(0, self.background_size - 1)]
         data_transformed = self.transform(data)
-        return data_transformed
+        return data_transformed        
 

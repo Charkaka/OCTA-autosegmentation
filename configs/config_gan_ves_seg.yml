@@ -5,7 +5,7 @@ General:
   task: gan-ves-seg
   inference: G
   model:
-    name: GanSegModel
+    name: GanSegModel # Model name
     model_g:
       name: resnetGenerator9
     model_d: 
@@ -23,14 +23,14 @@ General:
 Train:
   data:
     real_B:
-      files: /ABSOLUTE/PATH/TO/REAL/OCTA/FOLDER/**/*.png
+      files: /home/OCTA-seg/OCTA500/images/**/*.png
       # split: Optional: /PATH/TO/YOUR/INDEX/FILE
     real_A:
-      files: /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv
+      files: /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv 
     real_A_seg:
-      files: /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv
+      files: /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv  
     background:
-      files: /ABSOLUTE/PATH/TO/SYNTHETIC/BACKGROUND/FOLDER/**/*.png
+      files: /home/OCTA-seg/datasets/background_images/**/*.png
   epochs: 100
   epochs_decay: 0
   save_interval: 25
@@ -52,9 +52,11 @@ Train:
         - real_A
         - real_A_seg
       image_resolutions: 
-        - [304,304] # for 304x304 images
+        # - [304,304] # for 304x304 images3
+        # - [1216,1216]
+        - [640,640] # for 640x640 images3
         - [1216,1216]
-        # - [512,512] # for 512x512 images
+        # - [512,512] # for 512x512 images3
         # - [1216,1216]
       min_radius: [0,0]
       max_dropout_prob: 0.02
@@ -71,8 +73,10 @@ Train:
       - background
       - real_B
       spatial_size:
-      - 304
-      - 304
+      # - 304
+      # - 304
+      - 640
+      - 640
       # - 512
       # - 512
       mode: bilinear
@@ -141,13 +145,19 @@ Test:
   batch_size: 1
   data:
     real_B:
-      files: /ABSOLUTE/PATH/TO/REAL/OCTA/FOLDER/**/*.png
+      files: datasets/images3/*.png
+      # split: Optional: /PATH/TO/YOUR/INDEX/FILE
     real_A:
-      files: /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv
+      files: datasets/vessel_graphs/*.csv
+    # /ABSOLUTE/PATH/TO/SYNTHETIC/CSV/FOLDER/**/*.csv
+    real_A_seg:
+      files: datasets/vessel_graphs/*.csv 
+      # datasets/labels/GT_Artery/*.bmp
     background:
-      files: /ABSOLUTE/PATH/TO/SYNTHETIC/BACKGROUND/FOLDER/**/*.png
+      files: datasets/background_images/*.png
   save_comparisons: false
   data_augmentation:
+  
     - name: LoadImaged
       keys:
       - real_B
@@ -163,7 +173,8 @@ Test:
         - real_A
       
       image_resolutions: 
-        - [304,304]
+        # - [304,304]
+        - [640,640]
       allow_missing_keys: true
     - name: ScaleIntensityd
       keys:
@@ -211,6 +222,59 @@ Test:
       - name: RemoveSmallObjects
         min_size: 160
     label: null 
+
+Validation:
+  batch_size: 4
+  data:
+    real_B:
+      files: datasets/images3/*.png
+    real_A:
+      files: datasets/vessel_graphs/*.csv
+    real_A_seg:
+      files: datasets/vessel_graphs/*.csv
+    background:
+      files: datasets/background_images/*.png
+  data_augmentation:
+    - name: LoadImaged
+      keys:
+      - real_B
+      - background
+      image_only: true
+    - name: ToGrayScaled
+      keys:
+        - real_B
+    - name: LoadGraphAndFilterByRandomRadiusd
+      keys:
+        - real_A
+      image_resolutions:
+        - [640,640]
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - background
+      minv: 0
+      maxv: 1
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - background
+      channel_dim: no_channel
+      strict_check: false
+    - name: CastToTyped
+      keys:
+      - real_A
+      - real_B
+      dtype: dtype
+  post_processing:
+    prediction:
+      - name: AsDiscrete
+        threshold: 0.5
+      - name: RemoveSmallObjects
+        min_size: 160
+    label: null
+
 Output:
   save_dir: ./results/gan-ves-seg # /PATH/TO/YOUR/RESULTS/FOLDER
   save_to_disk: true

@@ -37,7 +37,9 @@ Train:
         - image
         - label
       image_resolutions: 
-        - [304,304] # for 304x304 images
+        # - [304,304] # for 304x304 images
+        # - [1216,1216]
+        - [640,640] # for 640x640 images
         - [1216,1216]
         # - [512,512] # for 512x512 images
         # - [1216,1216]
@@ -63,10 +65,13 @@ Train:
       keys:
       - background
       spatial_size:
-      - 304
-      - 304
+      # - 304
+      # - 304
       # - 512
       # - 512
+      - 640
+      - 640
+      
       mode: bilinear
     - name: AddRandomBackgroundNoised
       keys:
@@ -143,16 +148,16 @@ Validation:
   batch_size: 4
   data:
     image:
-      files: /ABSOLUTE/PATH/TO/OCTA-500/images/**/*.png
-      # files: /ABSOLUTE/PATH/TO/ROSE-1/images/**/*.png
-      # files: /ABSOLUTE/PATH/TO/Giarratano/original_images/**/*.png
+      files: /ABSOLUTE/PATH/TO/OCTA-500/images3/**/*.png
+      # files: /ABSOLUTE/PATH/TO/ROSE-1/images3/**/*.png
+      # files: /ABSOLUTE/PATH/TO/Giarratano/original_images3/**/*.png
       split: /ABSOLUTE/PATH/TO/OCTA-500/val_0.txt
       # split: /ABSOLUTE/PATH/TO/ROSE-1/val_0.txt
       # split: /ABSOLUTE/PATH/TO/Giarratano/val_0.txt
     label:
       files: /ABSOLUTE/PATH/TO/OCTA-500/segmentations/**/*.png
       # files: /ABSOLUTE/PATH/TO/ROSE-1/segmentations/**/*.png
-      # files: /ABSOLUTE/PATH/TO/Giarratano/segmented_images/**/*.png
+      # files: /ABSOLUTE/PATH/TO/Giarratano/segmented_images3/**/*.png
       split: /ABSOLUTE/PATH/TO/OCTA-500/val_0.txt
       # split: /ABSOLUTE/PATH/TO/ROSE-1/val_0.txt
       # split: /ABSOLUTE/PATH/TO/Giarratano/val_0.txt
@@ -224,9 +229,9 @@ Test:
   batch_size: 1
   data:
     image:
-      files: /ABSOLUTE/PATH/TO/OCTA-500/images/**/*.png
-      # files: /ABSOLUTE/PATH/TO/ROSE-1/images/**/*.png
-      # files: /ABSOLUTE/PATH/TO/Giarratano/original_images/**/*.png
+      files: /ABSOLUTE/PATH/TO/OCTA-500/images3/**/*.png
+      # files: /ABSOLUTE/PATH/TO/ROSE-1/images3/**/*.png
+      # files: /ABSOLUTE/PATH/TO/Giarratano/original_images3/**/*.png
       split: /ABSOLUTE/PATH/TO/OCTA-500/val_0.txt
       # split: /ABSOLUTE/PATH/TO/ROSE-1/val_0.txt
       # split: /ABSOLUTE/PATH/TO/Giarratano/val_0.txt

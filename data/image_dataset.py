@@ -49,7 +49,8 @@ def get_dataset(config: dict[str, dict], phase: str, batch_size=None, num_worker
     data = dict()
     for key, val in data_settings.items():
         paths = natsorted(glob(val["files"], recursive=True))
-        assert len(paths)>0, f"Error: Your provided file path {val['files']} for {key} does not match any files!"
+        # print(f"Resolved paths for {key}: {paths}")  # Debug statement
+        assert len(paths) > 0, f"Error: Your provided file path {val['files']} for {key} does not match any files!"
         if "split" in val:
             assert os.path.isfile(val["split"]), f"Error: Your provided split file path {val['split']} for {key} does not exist."
             with open(val["split"], 'r') as f:
@@ -67,15 +68,18 @@ def get_dataset(config: dict[str, dict], phase: str, batch_size=None, num_worker
             data[k] = np.resize(np.array(v), max_length).tolist()
         train_files = [dict(zip(data, t)) for t in zip(*data.values())]
         data_set = Dataset(train_files, transform=transform)
-    elif task == Task.GAN_VESSEL_SEGMENTATION:
+    elif task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CYCLEGAN: #For GAN or cycleGAN training, we use the UnalignedZipDataset
         if phase == Phase.VALIDATION:
             max_length = max([len(l) for l in data.values()])
             for k,v in data.items():
                 data[k] = np.resize(np.array(v), max_length).tolist()
             train_files = [dict(zip(data, t)) for t in zip(*data.values())]
             data_set = Dataset(train_files, transform=transform)
-        else:
+        else: # For training and testing, we use the UnalignedZipDataset
+            print(f"Data Keys: {data.keys()}")
             data_set = UnalignedZipDataset(data, transform, phase)
-
+            
+            print(f"Using UnalignedZipDataset for {phase} with {len(data_set)} samples.")
+    
     loader = DataLoader(data_set, batch_size=batch_size or config[phase].get("batch_size") or 1, shuffle=phase!=Phase.TEST, num_workers=ceil(cpu_count()/2) if num_workers is None else num_workers, pin_memory=torch.cuda.is_available())
     return loader
