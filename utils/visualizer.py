@@ -245,6 +245,9 @@ class Visualizer():
             },
             path,
         )
+        weights_only_path = os.path.join(self.save_dir, "checkpoints", f"{prefix}_weights_only.pth")
+        if model is not None:
+            torch.save(model.state_dict(), weights_only_path)
         return path
 
     def save_tune_checkpoint(path: str, d: dict):

@@ -46,7 +46,7 @@ Greenhouse:
       kappa: 2.9
       delta_sigma: 0.02
 output:
-  directory: /var/generation/vessel_graphs
+  directory: /home/charmain/OCTA-autosegmentation/generation/vessel_graphs
   # image_scale_factor: 304
   #for 640x640 images
   image_scale_factor: 640

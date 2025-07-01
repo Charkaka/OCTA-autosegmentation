@@ -1,6 +1,6 @@
 General:
-  amp: false
-  device: cpu
+  amp: true
+  device: cuda:0
   inference: model
   model:
     in_channels: 1
@@ -28,7 +28,7 @@ General:
   seed: 396513
   task: ves-seg
 Output:
-  save_dir: /home/OCTA-seg/docker/trained_models/reconstruction_3d
+  save_dir: docker/trained_models/reconstruction_3d  
   save_interval: 1
   save_to_disk: true
   save_to_tensorboard: false
@@ -36,7 +36,7 @@ Test:
   batch_size: 1
   data:
     image:
-      files: /var/segmented/**/*.png
+      files: /home/charmain/OCTA-autosegmentation/generation/segmented/**/*.png
   data_augmentation:
   - name: LoadImaged
     keys:
@@ -63,7 +63,7 @@ Test:
   - keys:
     - image
     name: AsDiscreted
-    threshold: 0.1
+    threshold: 
   - dtype: dtype
     keys:
     - image
@@ -74,8 +74,10 @@ Test:
     - name: Activations
       sigmoid: true
     - name: AsDiscrete
-      threshold: 0.5
+      threshold: 127
     - name: RemoveOuterNoise
+    - name: RemoveSmallObjects
+      min_size: 20
     - channel_dim: 0
       name: AsChannelLast
-  save_dir: /var/reconstructed
+  save_dir: /home/charmain/OCTA-autosegmentation/generation/reconstructed_3d

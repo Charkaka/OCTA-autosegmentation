@@ -131,7 +131,6 @@ class BaseModelABC(nn.Module, ModelInterface, ABC):
         - Dictionary containing the predictions and their names
         - Dictionary containing the loss values and their names
         """
-        raise NotImplementedError()
     
     @abstractmethod
     def forward(self, input: torch.Tensor) -> torch.Tensor:

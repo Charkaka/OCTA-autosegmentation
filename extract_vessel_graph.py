@@ -1,130 +1,127 @@
 import argparse
 import csv
+import numpy as np
+from skimage.morphology import skeletonize, remove_small_objects
+from scipy.ndimage import distance_transform_edt
 import os
 import yaml
-import glob
-import warnings
-import cv2
-import numpy as np
-from skimage.morphology import skeletonize
-from skimage import img_as_bool
-from multiprocessing import cpu_count
-import concurrent.futures
-from rich.console import Group, Console
-from rich.live import Live
-from rich.progress import Progress, TimeElapsedColumn
-from utils.visualizer import DynamicDisplay
-from vessel_graph_generation.utilities import prepare_output_dir, read_config
+import torch
+from models.frangi import Frangi
+from PIL import Image
 
-group = Group()
+def read_config(config_file):
+    with open(config_file, 'r') as f:
+        if config_file.endswith('.yml') or config_file.endswith('.yaml'):
+            return yaml.safe_load(f)
+        else:
+            raise ValueError("Only YAML config files are supported.")
 
-from scipy.ndimage import distance_transform_edt
+def prepare_output_dir(output_config):
+    out_dir = output_config['directory']
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    return out_dir
 
-def extract_vessel_graph_from_image(image_path, config, out_dir):
-    # 1. Load image (grayscale)
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        print(f"Failed to load {image_path}")
-        return
+def segment_vessels_with_frangi_2d(image_path, threshold=0.5):
+    """
+    Apply Frangi filter to a 2D PNG image and save the binary vessel mask as PNG.
+    """
+    img = Image.open(image_path).convert('L')
+    data = np.array(img).astype(np.float32)
+    # Normalize to [0,1]
+    data_norm = (data - data.min()) / (data.max() - data.min() + 1e-8)
+    tensor_img = torch.tensor(data_norm, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    frangi = Frangi()
+    vesselness = frangi(tensor_img)
+    vessel_mask = (vesselness > threshold).squeeze().numpy().astype(np.uint8)
+    print("Vessel mask sum:", vessel_mask.sum())
+    # Save mask as PNG
+    mask_path = image_path.replace(".png", "_frangi_mask.png")
+    Image.fromarray((vessel_mask * 255).astype(np.uint8)).save(mask_path)
+    return mask_path
 
-    # 2. Vessel segmentation (adaptive thresholding)
-    vessel_mask = cv2.adaptiveThreshold(
-        img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, 10
-    )
+def extract_vessel_graph_from_2d_image(image_path, out_csv_path, threshold=0.5, min_skel_size=20, norm_radius=True, pixel_spacing=1.0):
+    """
+    Extract vessel graph from a 2D vessel mask (PNG) and save as CSV.
+    """
+    img = Image.open(image_path).convert('L')
+    data = np.array(img).astype(np.float32)
+    vessel_mask = data > (threshold * 255 if data.max() > 1 else threshold)
+    shape = data.shape  # (y, x)
 
-    # 3. Skeletonize
-    skeleton = skeletonize(img_as_bool(vessel_mask))
+    # 2D skeletonization
+    skeleton = skeletonize(vessel_mask)
+    # Remove small skeleton objects (noise)
+    skeleton = remove_small_objects(skeleton, min_size=min_skel_size)
+    print("Skeleton pixels after removal:", np.count_nonzero(skeleton))
 
-    # 4. Compute distance transform (for radius estimation)
-    vessel_mask_bool = vessel_mask > 0
-    distance_map = distance_transform_edt(vessel_mask_bool)
+    # Distance map for radius calculation
+    distance_map = distance_transform_edt(vessel_mask)
 
-    # --- FOV and pixel size ---
-    fov_mm = float(config['input'].get('fov_mm', 6.0))  # Default to 6.0mm if not set
-    img_h, img_w = img.shape
-    pixel_size_mm_y = fov_mm / img_h
-    pixel_size_mm_x = fov_mm / img_w
+    # For normalization, use the largest dimension in physical units
+    if norm_radius:
+        box_size = np.max(np.array(shape) * pixel_spacing)
+    else:
+        box_size = 1.0
 
-    # 5. Extract vessel graph as edge list (simple 4-neighbor connectivity)
-    vessel_coords = np.column_stack(np.where(skeleton))
-    edge_set = set()
-    for y, x in vessel_coords:
-        for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
-            ny, nx = y+dy, x+dx
-            if 0 <= ny < skeleton.shape[0] and 0 <= nx < skeleton.shape[1]:
-                if skeleton[ny, nx]:
-                    # Convert pixel indices to physical (mm) locations
-                    node1 = np.array([y * pixel_size_mm_y, x * pixel_size_mm_x])
-                    node2 = np.array([ny * pixel_size_mm_y, nx * pixel_size_mm_x])
-                    # Estimate radius in mm
-                    radius = float((distance_map[y, x] + distance_map[ny, nx]) / 2) * ((pixel_size_mm_x + pixel_size_mm_y) / 2)
-                    # Always store edges in sorted order to avoid duplicates
-                    edge = tuple(sorted([tuple(node1), tuple(node2)])) + (radius,)
-                    edge_set.add(edge)
+    coords = np.argwhere(skeleton)
+    edges_set = set()
+    edges = []
+    for y, x in coords:
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:
+                    continue
+                ny, nx = y + dy, x + dx
+                if (0 <= ny < skeleton.shape[0] and
+                    0 <= nx < skeleton.shape[1] and
+                    skeleton[ny, nx]):
+                    edge_key = tuple(sorted([(y, x), (ny, nx)]))
+                    if edge_key not in edges_set:
+                        edges_set.add(edge_key)
+                        node1 = [float(x)/shape[1], float(y)/shape[0]]
+                        node2 = [float(nx)/shape[1], float(ny)/shape[0]]
+                        radius = float(distance_map[y, x]) * pixel_spacing / box_size
+                        edges.append((node1, node2, radius))
+    print("Edges found:", len(edges))
 
-    # 6. Save vessel graph as CSV
-    base_name = os.path.splitext(os.path.basename(image_path))[0]
-    csv_path = os.path.join(out_dir, f"{base_name}_vessel_graph.csv")
-    with open(csv_path, 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["node1", "node2", "radius"])
-        for node1, node2, radius in edge_set:
-            # Write as NumPy-style arrays
-            writer.writerow([f"[{node1[0]:.6f} {node1[1]:.6f}]", f"[{node2[0]:.6f} {node2[1]:.6f}]", radius])
+    def format_coord(coord):
+        return "[" + " ".join(f"{v:.8f}" for v in coord) + "]"
+
+    with open(out_csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['node1', 'node2', 'radius'])
+        for node1, node2, radius in edges:
+            writer.writerow([format_coord(node1), format_coord(node2), radius])
 
 def main(config):
-    # Prepare output directory
-    out_dir = prepare_output_dir(config['output'])
-    with open(os.path.join(out_dir, 'config.yml'), 'w') as f:
-        yaml.dump(config, f)
-
     input_dir = config['input']['directory']
     file_ext = config['input']['file_extension']
-    image_paths = sorted(glob.glob(os.path.join(input_dir, f"*{file_ext}")))
+    output_config = config['output']
+    output_dir = prepare_output_dir(output_config)
+    threshold = config['input'].get('frangi_threshold', 0.5)
+    min_skel_size = config['input'].get('min_skel_size', 20)
+    pixel_spacing = config['input'].get('pixel_spacing', 0.015)  # Set to your pixel size in mm if known
 
-    for image_path in image_paths:
-        extract_vessel_graph_from_image(image_path, config, out_dir)
-    
-   
+    counter = 0
+    for fname in os.listdir(input_dir):
+        if not fname.endswith(file_ext):
+            continue
+        counter += 1
+        print(f"Processing file: {counter}/ {len}: {fname}")
+        image_path = os.path.join(input_dir, fname)
+        out_csv_path = os.path.join(output_dir, os.path.splitext(fname)[0] + '_vessel_graph.csv')
+        # Step 1: Segment vessels with Frangi filter
+        mask_path = segment_vessels_with_frangi_2d(image_path, threshold=threshold)
+        # Step 2: Extract vessel graph from mask
+        extract_vessel_graph_from_2d_image(mask_path, out_csv_path, threshold=0.5, min_skel_size=min_skel_size, pixel_spacing=pixel_spacing)
+        print(f"Extracted vessel graph saved to {out_csv_path}")
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Extract vessel graphs from OCTA500 images')
+    parser = argparse.ArgumentParser(description='Extract vessel graph from 2D OCTA PNG images using config file.')
     parser.add_argument('--config_file', type=str, required=True)
-    parser.add_argument('--debug', action="store_true")
-    parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
     args = parser.parse_args()
-
-    if args.debug:
-        warnings.filterwarnings('error')
 
     assert os.path.isfile(args.config_file), f"Error: Your provided config path {args.config_file} does not exist!"
     config = read_config(args.config_file)
-
-    assert config['output'].get('save_3D_volumes') in [None, 'npy', 'nifti'], \
-        f"Your provided option {config['output'].get('save_3D_volumes')} for 'save_3D_volumes' does not exist. Choose one of 'null', 'npy' or 'nifti'."
-
-    if args.threads == -1:
-        cpus = cpu_count()
-        threads = max(cpus - 1, 1)
-    else:
-        threads = args.threads
-
-    with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
-        progress = Progress(*Progress.get_default_columns(), TimeElapsedColumn())
-        image_dir = config['input']['directory']
-        file_ext = config['input']['file_extension']
-        image_paths = sorted(glob.glob(os.path.join(image_dir, f"*{file_ext}")))
-        progress.add_task(f"Extracting vessel graphs from {len(image_paths)} images:", total=len(image_paths))
-        with DynamicDisplay(group, progress):
-            if threads > 1:
-                with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
-                    future_dict = {
-                        executor.submit(extract_vessel_graph_from_image, image_path, config, config['output']['directory']): i
-                        for i, image_path in enumerate(image_paths)
-                    }
-                    for future in concurrent.futures.as_completed(future_dict):
-                        progress.advance(task_id=0)
-            else:
-                for image_path in image_paths:
-                    extract_vessel_graph_from_image(image_path, config, config['output']['directory'])
-                    progress.advance(task_id=0)
-        print("Vessel graph extraction completed.")
+    main(config)

@@ -21,3 +21,5 @@ vessel_graph_generation/runs
 **/*.code-workspace
 
 generation/
+
+clientData/

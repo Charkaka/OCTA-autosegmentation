@@ -499,8 +499,22 @@ class NLayerDiscriminator(nn.Module):
         """Standard forward."""
         return self.model(input)
 
-def resnetGenerator9():
-    return ResnetGenerator(1, 1, ngf=64, norm_layer=get_norm_layer("instance"), n_blocks=9)
+class ResnetGenerator9(ResnetGenerator):
+    def __init__(self, input_nc=1, output_nc=1, ngf=64, norm_layer=None, use_dropout=False, padding_type='reflect', no_antialias=False, no_antialias_up=False, opt=None):
+        if norm_layer is None:
+            norm_layer = get_norm_layer("instance")
+        super().__init__(
+            input_nc=input_nc,
+            output_nc=output_nc,
+            ngf=ngf,
+            norm_layer=norm_layer,
+            use_dropout=use_dropout,
+            n_blocks=9,
+            padding_type=padding_type,
+            no_antialias=no_antialias,
+            no_antialias_up=no_antialias_up,
+            opt=opt
+        )
 
 def patchGAN70x70():
     return NLayerDiscriminator(1, ndf=64, n_layers=3, norm_layer=get_norm_layer("instance"))
@@ -1009,7 +1023,7 @@ class Negative_Generator(nn.Module):
 MODEL_DICT: dict[str, Union[ResnetGenerator, NLayerDiscriminator, DynUNet]] = {
     "DynUNet": DynUNet,
     "GanSegModel": GanSegModel,
-    "resnetGenerator9": resnetGenerator9,
+    "resnetGenerator9": ResnetGenerator9, 
     "patchGAN70x70": patchGAN70x70,
     "oof": OOF,
     "frangi": Frangi,

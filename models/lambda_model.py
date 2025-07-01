@@ -15,6 +15,12 @@ class LambdaModel(BaseModelABC):
     def __init__(self, model_name: str, phase: Phase, MODEL_DICT: dict, inference: str="model", **kwargs) -> None:
         super().__init__(optimizer_mapping={"optimizer": ["model"]})
         self.model = MODEL_DICT[model_name](**kwargs)
+        # Set netG_A if inference mode is netG_A
+        if inference == "netG_A":
+            self.netG_A = self.model
+        # Optionally, always set netG_A for compatibility
+        else:
+            self.netG_A = self.model
 
     overrides(BaseModelABC)
     def initialize_model_and_optimizer(self, init_mini_batch: dict, init_weights: Callable, config: dict[str, dict], args, scaler: GradScaler, phase:Phase=Phase.TRAIN) -> None:

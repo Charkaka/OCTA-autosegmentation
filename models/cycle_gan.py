@@ -9,11 +9,6 @@ import torch.nn as nn
 from monai.data import decollate_batch
 
 class CycleGAN(BaseModelABC):
-    """
-    Adapted from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
-    This class implements the CycleGAN model, for learning image-to-image translation without paired data.
-    CycleGAN paper: https://arxiv.org/pdf/1703.10593.pdf
-    """
     def __init__(self,
                 phase: Phase,
                 MODEL_DICT: dict,
@@ -27,23 +22,21 @@ class CycleGAN(BaseModelABC):
                 lambda_idt: float,
                 pool_size: int,
                 *args, **kwargs) -> None:
-        super().__init__(optimizer_mapping={"optimizer_G": ["netG_A", "netG_B"], "optimizer_D": ["netD_A", "netD_B"]}, *args, **kwargs)
 
+        super().__init__(optimizer_mapping={"optimizer_G": ["netG_A", "netG_B"], "optimizer_D": ["netD_A", "netD_B"]}, *args, **kwargs)
+       
         self.lambda_A = lambda_A
         self.lambda_B = lambda_B
         self.lambda_idt = lambda_idt
 
         # define networks (both Generators and discriminators)
-        # The naming is different from those used in the paper.
-        # Code (vs. paper): G_A (G), G_B (F), D_A (D_Y), D_B (D_X)
-        self.netG_A: nn.Module = None
+        self.netG_A: nn.Module = MODEL_DICT[netG_A_config.pop("name")](**netG_A_config)
         self.netG_B: nn.Module = None
         self.netD_A: nn.Module = None
         self.netD_B: nn.Module = None
         self.optimizer_G: torch.optim.Optimizer
         self.optimizer_D: torch.optim.Optimizer
-        if phase == Phase.TRAIN or inference == "netG_A":
-            self.netG_A = MODEL_DICT[netG_A_config.pop("name")](**netG_A_config)
+
         if phase == Phase.TRAIN or inference == "netG_B":
             self.netG_B = MODEL_DICT[netG_B_config.pop("name")](**netG_B_config)
 
@@ -52,8 +45,8 @@ class CycleGAN(BaseModelABC):
             self.netD_A = MODEL_DICT[netD_A_config.pop("name")](**netD_A_config)
             self.netD_B = MODEL_DICT[netD_B_config.pop("name")](**netD_B_config)
 
-            self.fake_A_pool = ImagePool(pool_size)  # create image buffer to store previously generated images
-            self.fake_B_pool = ImagePool(pool_size)  # create image buffer to store previously generated images
+            self.fake_A_pool = ImagePool(pool_size)
+            self.fake_B_pool = ImagePool(pool_size)
 
     @overrides(BaseModelABC)
     def initialize_model_and_optimizer(self, init_mini_batch: dict, init_weights: Callable, config: dict, args, scaler, phase: Phase=Phase.TRAIN):
@@ -111,7 +104,17 @@ class CycleGAN(BaseModelABC):
         - Dictionary containing the losses and their names
         """
         assert phase==Phase.VALIDATION or phase==Phase.TEST, "This inference function only supports val and test. Use perform_step for training"
+        inference_mode = getattr(self, "inference_mode", "netG_A")
         input = mini_batch["image"].to(device=device, non_blocking=True)
+
+        print("Inference mode:", inference_mode)
+
+        if inference_mode == "netG_A":
+            pred = self.netG_A(input)
+            outputs: Output = { "prediction": [post_transformations["prediction"](i) for i in decollate_batch(pred[0:1,0:1])] }
+            losses = dict()
+            return outputs, losses
+
         pred = self.forward(input)
         losses = dict()
         outputs: Output = { "prediction": [post_transformations["prediction"](i) for i in decollate_batch(pred[0:1,0:1])]}

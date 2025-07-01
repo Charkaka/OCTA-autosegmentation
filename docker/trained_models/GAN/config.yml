@@ -1,6 +1,6 @@
 General:
-  amp: false
-  device: cpu
+  amp: true
+  device: cuda:0
   inference: G
   model:
     compute_identity: false
@@ -33,19 +33,19 @@ General:
       - 2
       - 1
     name: GanSegModel
-  seed: 675570
+  seed: 675570 
   task: gan-ves-seg
 Output:
-  save_dir: /home/OCTA-seg/docker/trained_models/GAN
+  save_dir: /home/charmain/OCTA-autosegmentation/docker/trained_models/GAN
   save_to_disk: true
   save_to_tensorboard: false
 Test:
   batch_size: 1
   data:
     background:
-      files: /home/OCTA-seg/generation/background_images/**/*.png
+      files: /home/charmain/OCTA-autosegmentation/datasets/background_images/**/*.png
     real_A:
-      files: /var/generation/vessel_graphs/**/*.csv
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/extracted_vessel_graphs/**/*.csv
   data_augmentation:
   - allow_missing_keys: true
     image_only: true
@@ -91,9 +91,9 @@ Test:
     keys:
     - real_A
     name: CastToTyped
-  model_path: /home/OCTA-seg/docker/trained_models/GAN/checkpoints/150_G_model.pth
+  model_path: /home/charmain/OCTA-autosegmentation/docker/trained_models/GAN/checkpoints/150_G_model.pth
   post_processing:
     label: null
     prediction: null
   save_comparisons: false
-  save_dir: /var/generation/images
+  save_dir: /home/charmain/OCTA-autosegmentation/OCTA500/e_vs_images

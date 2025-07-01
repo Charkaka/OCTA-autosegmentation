@@ -47,15 +47,17 @@ Greenhouse:
       delta_sigma: 0.02
 
 input:
-  directory: /var/OCTA500/labels   # <-- Use absolute path
+  directory: /home/charmain/OCTA-autosegmentation/OCTA500/segmented  # <-- Use absolute path
+  # directory: /home/charmain/OCTA-autosegmentation/generation/reconstructed_3d  # <-- Use absolute path
   file_extension: .png
-  fov_mm: 6.4 
+  fov_mm: 6
+  pixel_size_mm: 0.015
 
 output:
-  directory: /var/OCTA500/vessel_graphs
+  directory: /home/charmain/OCTA-autosegmentation/OCTA500/extracted_vessel_graphs
   # image_scale_factor: 304
   #for 640x640 images
-  image_scale_factor: 640
+  image_scale_factor: 400
   save_trees: true
   save_3D_volumes: null
   save_2D_image: true

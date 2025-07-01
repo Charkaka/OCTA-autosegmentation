@@ -102,7 +102,7 @@ python train.py --config_file ./configs/[CONFIG_FILE_NAME]
 ## Validation
 To evaluate trained models (or methods that do not need to be trained), make sure the validation section of the respective config file is correct and run:
 ```sh
-python validate.py --config_file [PATH_TO_CONFIG_FILE] --epoch [EPOCH]
+python3 validate.py --config_file docker/trained_models/new_GAN/config_cycle_gan.yml --epoch 150[PATH_TO_CONFIG_FILE] --epoch [EPOCH]
 ```
 
 ## Testing / Inference
