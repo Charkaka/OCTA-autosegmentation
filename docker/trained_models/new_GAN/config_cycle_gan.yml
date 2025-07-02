@@ -1,4 +1,3 @@
----
 General:
   amp: true
   device: cuda:0
@@ -39,6 +38,7 @@ Train:
   loss_criterionGAN: LSGANLoss
   loss_criterionCycle: L1Loss
   loss_criterionIdt: L1Loss
+  
   data_augmentation:
     - name: LoadImaged
       keys:
@@ -46,8 +46,10 @@ Train:
         - real_B
         - background
       image_only: true
+   
     - name: ToGrayScaled
       keys:
+        - real_A
         - real_B
     # - name: LoadGraphAndFilterByRandomRadiusd
     #   keys:

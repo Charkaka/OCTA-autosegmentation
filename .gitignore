@@ -23,3 +23,8 @@ vessel_graph_generation/runs
 generation/
 
 clientData/
+
+
+*_images/
+*.png
+OCTA500/

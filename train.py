@@ -58,12 +58,15 @@ def train(args: argparse.Namespace, config: dict[str,dict]):
         init_mini_batch = next(iter(train_loader))
         input_key = [k for k in init_mini_batch.keys() if not k.endswith("_path")][0]
         init_mini_batch["image"] = init_mini_batch[input_key]
+        print("done loading training data.")
 
     with DynamicDisplay(group, Spinner("bouncingBall", text="Initializing model...")):
         model: BaseModelABC = define_model(deepcopy(config), phase = Phase.TRAIN)
         model.initialize_model_and_optimizer(init_mini_batch, init_weights, config, args, scaler, phase=Phase.TRAIN)
 
+        print(init_mini_batch["image"].shape)
         visualizer.save_model_architecture(model, init_mini_batch["image"].to(device, non_blocking=True) if init_mini_batch else None)
+        print("done initializing model.")
 
     metrics = MetricsManager(phase=Phase.TRAIN)
 
@@ -90,7 +93,10 @@ def train(args: argparse.Namespace, config: dict[str,dict]):
             progress.add_task("Train Batch", total=len(train_loader))
             for mini_batch in train_loader:
                 step += 1
-
+                if "image" not in mini_batch:
+                    input_key = [k for k in mini_batch.keys() if not k.endswith("_path")][0]
+                    mini_batch["image"] = mini_batch[input_key]
+                
                 outputs, losses = model.perform_training_step(mini_batch, scaler, post_transformations_train, device)
                 with torch.cuda.amp.autocast():
                     model.compute_metric(outputs, metrics)
