@@ -1,0 +1,113 @@
+General:
+  device: cuda:0  # Device to use for training/inference (e.g., cuda:0 or cpu)
+  seed: 675570  # Random seed for reproducibility
+  task: generation
+
+
+Models:
+  name: controlnet-sdxl-canny
+  model_path: /home/charmain/OCTA-autosegmentation/models/pretrained/controlnet/controlnet-sdxl-canny/controlnet
+Train:
+  data:
+    real_A:
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/resized_segmented_images/**/*.png  # Input vessel graphs
+      files:  /home/charmain/OCTA-autosegmentation/OCTA500/sample_image/**/*.png  # Target vessel graphs
+    real_B:
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png  # Target realistic images
+      files:  /home/charmain/OCTA-autosegmentation/OCTA500/sample_image/**/*.png  # Target vessel graphs
+    background:
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/background_images/**/*.png  # Optional background images
+      files:  /home/charmain/OCTA-autosegmentation/OCTA500/sample_image/**/*.png  # Target vessel graphs
+  epochs: 150  # Number of training epochs
+  batch_size: 4  # Batch size for training
+  lr: 0.0001  # Learning rate
+  save_interval: 10  # Save model every 10 epochs
+  data_augmentation:
+    - name: LoadImaged
+      keys:
+        - real_A
+        - real_B
+        - background
+      image_only: true
+    - name: ToGrayScaled
+      keys:
+        - real_A
+        - real_B
+    - name: Resized
+      keys:
+        - real_A
+        - real_B
+        - background
+      spatial_size:
+        - 512
+        - 512
+      mode: bilinear
+    - name: ScaleIntensityd
+      keys:
+        - real_A
+        - real_B
+        - background
+      minv: 0
+      maxv: 1
+    - name: RandFlipd
+      keys:
+        - real_A
+        - real_B
+      prob: 0.5
+      spatial_axis:
+        - 0
+        - 1
+    - name: RandRotate90d
+      keys:
+        - real_A
+        - real_B
+      prob: 0.75
+  post_processing:
+    prediction: null  # No post-processing for predictions
+    label: null  # No post-processing for labels
+
+Test:
+  batch_size: 1
+  data:
+    real_B:
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+    real_A:
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/vessel_graphs/**/*.csv
+      # files: /home/charmain/OCTA-autosegmentation/clientData/**/*.png
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/resized_segmented_images/**/*.png
+    background:
+      files: /home/charmain/OCTA-autosegmentation/datasets/background_images_resized/**/*.png
+  save_comparisons: true
+
+  data_augmentation:
+    - name: LoadImaged
+      keys:
+        - real_A
+        - real_B
+        - background
+      allow_missing_keys: true
+      image_only: true
+    - name: ToGrayScaled
+      keys:
+        - real_A
+        - real_B
+    - name: ScaleIntensityd
+      keys:
+        - real_B
+        - real_A
+        - background
+  
+  post_processing:
+    prediction: null
+    label: null
+
+Inference:
+  num_inference_steps: 75  # Number of inference steps for the diffusion process
+  guidance_scale: 15.0  # Guidance scale for controlling the influence of the prompt
+  prompt: "A high-quality optical coherence tomography angiography image with detailed vessel structures"  # Optional text prompt for conditioning
+
+Output:
+  save_dir: /home/charmain/OCTA-autosegmentation/controlnet_results 
+  model_path: /home/charmain/OCTA-autosegmentation/docker/trained_models/controlNet/checkpoints/150_model.pth
+  save_to_disk: true
+  save_to_tensorboard: false

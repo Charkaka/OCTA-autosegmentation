@@ -17,6 +17,8 @@ from models.cut import CUTModel
 from models.negcut import NEGCUTModel
 from models.dclgan import DCLGAN
 
+from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline
+
 V = TypeVar("V")
 
 """
@@ -516,8 +518,10 @@ class ResnetGenerator9(ResnetGenerator):
             opt=opt
         )
 
-def patchGAN70x70():
-    return NLayerDiscriminator(1, ndf=64, n_layers=3, norm_layer=get_norm_layer("instance"))
+def patchGAN70x70(input_nc=3, ndf=64, n_layers=3, norm_layer=None):
+    if norm_layer is None:
+        norm_layer = get_norm_layer("instance")
+    return NLayerDiscriminator(input_nc, ndf=ndf, n_layers=n_layers, norm_layer=norm_layer)
 
 
 class Normalize(nn.Module):
@@ -1019,6 +1023,46 @@ class Negative_Generator(nn.Module):
             self.return_noise.append(noise)
         return self.return_feats
 
+
+class ControlNetLDM:
+    def __init__(self, controlnet_model_path: str, ldm_model_path: str, device: str = "cuda:0"):
+        """
+        Initialize the ControlNet + LDM pipeline.
+
+        Args:
+            controlnet_model_path (str): Path to the pretrained ControlNet model.
+            ldm_model_path (str): Path to the pretrained Latent Diffusion Model (LDM).
+            device (str): Device to use for inference (e.g., "cuda:0" or "cpu").
+        """
+        self.device = torch.device(device)
+        self.controlnet = ControlNetModel.from_pretrained(controlnet_model_path)
+        self.pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
+            ldm_model_path, controlnet=self.controlnet
+        )
+        self.pipeline.to(self.device)
+
+    def infer(self, control_image: torch.Tensor, prompt: str = "", num_inference_steps: int = 50, guidance_scale: float = 7.5):
+        """
+        Perform inference using the ControlNet + LDM pipeline.
+
+        Args:
+            control_image (torch.Tensor): The control image (e.g., vessel graph or segmentation mask).
+            prompt (str): Optional text prompt for conditioning.
+            num_inference_steps (int): Number of inference steps for the diffusion process.
+            guidance_scale (float): Guidance scale for controlling the influence of the prompt.
+
+        Returns:
+            PIL.Image.Image: The generated image.
+        """
+        with torch.no_grad():
+            generated_image = self.pipeline(
+                prompt=prompt,
+                control_image=control_image,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=guidance_scale
+            ).images[0]
+        return generated_image
+
 # TODO move to function
 MODEL_DICT: dict[str, Union[ResnetGenerator, NLayerDiscriminator, DynUNet]] = {
     "DynUNet": DynUNet,
@@ -1036,5 +1080,7 @@ MODEL_DICT: dict[str, Union[ResnetGenerator, NLayerDiscriminator, DynUNet]] = {
     "CUTModel": CUTModel,
     "NEGCUTModel": NEGCUTModel,
     "Negative_Generator": Negative_Generator,
-    "DCLGAN": DCLGAN
+    "DCLGAN": DCLGAN,
+    "ControlNetLDM": ControlNetLDM
+    
 }

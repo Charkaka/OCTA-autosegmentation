@@ -1,0 +1,248 @@
+---
+General:
+  amp: true
+  device: cuda:0
+  task: gan-ves-seg
+  inference: netG
+  model:
+    name: CUTModel
+    netG_config:
+      name: resnetGenerator9
+      input_nc: 3  # Number of input channels (3 for RGB)
+      output_nc: 3  # Number of output channels (3 for RGB)
+    netD_config: 
+      name: patchGAN70x70
+      input_nc: 3  # Number of input channels (3 for RGB)
+    netF_config:
+      name: PatchSamplerF
+      use_mlp: True
+      nc: 256
+    nce_layers: '0,4,8,12,16'
+    # For Nomal CUT:
+    nce_idt: True
+    lambda_NCE: 1
+    flip_equivariance: False
+    # For Fast NEGCUT:
+    # nce_idt: False
+    # lambda_NCE: 10
+    # flip_equivariance: False
+    lambda_GAN: 1
+    num_patches: 256
+  seed: 675570
+
+Train:
+  data:
+    real_B:
+    # raw octa images
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+
+      # files: /home/charmain/OCTA-autosegmentation/clientData/**/*.png
+      # split: /home/charmain/OCTA-autosegmentation/train.txt
+      # files: /home/charmain/OCTA-autosegmentation/models/sample1/**/*.png
+    real_A:
+    # synthetic images
+      files: /home/charmain/OCTA-autosegmentation/clientDataFlattened/**/*.png
+      split: /home/charmain/OCTA-autosegmentation/train.txt
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/resized_segmented_images/**/*.png
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+      # files: /home/charmain/OCTA-autosegmentation/models/sample/**/*.png
+    background:
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/background_images/**/*.png
+  epochs: 150
+  epochs_decay: 0
+  save_interval: 150
+  val_interval: 200
+  batch_size: 4
+  lr: 0.0002
+  loss_criterionGAN: LSGANLoss
+  loss_criterionNCE: PatchNCELoss
+  
+  data_augmentation:
+    - name: LoadImaged
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      image_only: true
+
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      channel_dim: no_channel
+
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      minv: 0
+      maxv: 1
+
+    - name: Resized
+      keys:
+      - real_A
+      - real_B
+      - background
+      spatial_size:
+      # - 400
+      - 400
+      - 400  # Include depth, height, and width
+      mode: bilinear
+
+    - name: RepeatChanneld
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      repeats: 3  # Convert grayscale images to 3-channel format
+
+    - name: RandFlipd
+      keys:
+      - real_A
+      - real_B
+      prob: 0.5
+      spatial_axis:
+      - 0
+      - 1
+
+    - name: RandRotate90d
+      keys:
+      - real_A
+      - real_B
+      prob: 0.75
+
+    - name: RandRotated
+      keys:
+      - real_A
+      - real_B
+      prob: 1
+      range_x: 0.17453292519943295
+      padding_mode: zeros
+
+    - name: AddRandomBackgroundNoised
+      keys:
+      - real_A
+
+    - name: CastToTyped
+      keys:
+      - real_A
+      - real_B
+      dtype: dtype
+
+  post_processing:
+    prediction:
+      - name: AsDiscrete
+        threshold: 0.5
+    label: 
+      - name: AsDiscrete
+        threshold: 0.5
+
+Test:
+  batch_size: 1
+  data:
+    real_B:
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+    real_A:
+      # files: /home/charmain/OCTA-autosegmentation/OCTA500/resized_segmented_images/**/*.png
+      files: /home/charmain/OCTA-autosegmentation/clientDataFlattened/**/*.png
+     
+    background:
+      files: /home/charmain/OCTA-autosegmentation/OCTA500/background_images/**/*.png
+  save_comparisons: false
+  data_augmentation:
+    - name: LoadImaged
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      image_only: true
+    # - name: LoadGraphAndFilterByRandomRadiusd
+    #   keys:
+    #     - real_A
+      # image_resolutions: 
+      #   - [640,640] # for 640x640 images
+      # allow_missing_keys: true
+    # - name: ToGrayScaled
+    #   keys:
+    #   - real_A
+    #   - real_B
+    #   - background
+
+      allow_missing_keys: true
+    
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      minv: 0
+      maxv: 1
+   
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      channel_dim: no_channel
+      strict_check: false
+
+    - name: RepeatChanneld
+      keys:
+      - real_A
+      - real_B
+      - background
+      allow_missing_keys: true
+      repeats: 3  # Convert grayscale images to 3-channel format
+   
+    - name: Resized
+      keys:
+      - real_A
+      - real_B
+      - background
+      spatial_size:
+      - 400
+      - 400  # Include depth, height, and width
+      mode: bilinear
+
+    
+    - name: Rotate90d
+      allow_missing_keys: true
+      keys:
+      - real_A
+      - real_B
+      - background
+      k: 1
+    - name: Flipd
+      allow_missing_keys: true
+      keys:
+      - real_A
+      - real_B
+      - background
+      spatial_axis: 0
+
+    - name: AddRandomBackgroundNoised
+      keys:
+      - real_A
+    - name: CastToTyped
+      keys:
+      - real_A
+      - real_B
+      allow_missing_keys: true
+      dtype: dtype
+  post_processing:
+    prediction: null
+    label: null
+Output:
+  save_dir: /home/charmain/OCTA-autosegmentation/docker/trained_models/CUT
+  model_path: /home/charmain/OCTA-autosegmentation/docker/trained_models/CUT/checkpoints/150_model.pth
+  save_to_disk: true
+  save_to_tensorboard: false

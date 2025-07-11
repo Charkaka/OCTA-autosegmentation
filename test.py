@@ -26,6 +26,9 @@ group = Group()
 from torchvision.utils import save_image
 import subprocess
 
+from PIL import Image
+from diffusers import StableDiffusionXLControlNetPipeline
+
 # # Parse input arguments
 # parser = argparse.ArgumentParser(description='')
 # parser.add_argument('--config_file', type=str, required=True)
@@ -132,6 +135,9 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
         input_key = [k for k in test_mini_batch.keys() if not k.endswith("_path")][0]
         test_mini_batch["image"] = test_mini_batch.pop(input_key)
 
+        print(f"test_mini_batch keys: {test_mini_batch.keys()}")
+        print(f"Shape of test_mini_batch['image']: {test_mini_batch['image'].shape}")
+
     with DynamicDisplay(group, Spinner("bouncingBall", text="Initializing model...")):
         model = define_model(config, phase=Phase.TEST)
         model.initialize_model_and_optimizer(test_mini_batch, init_weights, config, args, scaler, phase=Phase.TEST)
@@ -140,7 +146,19 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
             assert os.path.isfile(args.model_path), f"Model checkpoint {args.model_path} does not exist!"
             print(f"Loading model weights from {args.model_path}")
             state_dict = torch.load(args.model_path, map_location=device)
-            model.netG_A.load_state_dict(state_dict)
+            # model.netG_A.load_state_dict(state_dict)
+            model.netG.load_state_dict(state_dict)  # Use netG instead of netG_A
+
+            
+    
+    #Use of StableDiffusionXLControlNetPipeline    
+    # with DynamicDisplay(group, Spinner("bouncingBall", text="Initializing model...")):
+    #     print("Loading ControlNet SDXL pipeline...")
+    #     pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+    #         config["Models"]["model_path"],
+    #         torch_dtype=torch.float16
+    #     )
+    #     pipe.to(device)  # Move the pipeline to the specified device (e.g., GPU)
 
     # Prepare directories for FID
     generated_dir = os.path.join(save_dir, "fid_generated")
@@ -160,25 +178,125 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
                 num_sample+=1
                 test_mini_batch["image"] = test_mini_batch.pop(input_key)
                 outputs, _ = model.inference(test_mini_batch, post_transformations_test, device=device, phase=Phase.TEST)
+                
+                # # Use the ControlNet pipeline for inference
+                # control_image_path = test_mini_batch[f"{input_key}_path"][0]
+                
+                # # Debugging: Print the control image path
+                # print(f"Control image path: {control_image_path}")
+                
+                # # Check if the file exists
+                # if not os.path.isfile(control_image_path):
+                #     raise FileNotFoundError(f"Control image file not found: {control_image_path}")
+                
+                # # Try to load the control image
+                # try:
+                #     control_image = Image.open(control_image_path).convert("RGB")
+                #     print(f"Control image loaded: {control_image}")
+                # except Exception as e:
+                #     raise RuntimeError(f"Failed to load control image from {control_image_path}: {e}")
+                
+                # # Convert control_image to a NumPy array or Torch tensor if needed
+                # control_image = np.array(control_image)  # Convert to NumPy array
+                # control_image = np.expand_dims(control_image, axis=0)  # Add batch dimension
+                # print(f"Control image shape after adding batch dimension: {control_image.shape}")
+                
+                # # Match the batch size of the prompt
+                # prompt = [config["Inference"]["prompt"]] * control_image.shape[0]  # Repeat the prompt for each image in the batch
+                
+                # # Debugging: Print the inputs to the pipeline
+                # print(f"Prompt: {prompt}")
+                # print(f"Control image type: {type(control_image)}")
+                # print(f"Control image shape: {control_image.shape}")
+                
+                # # Run inference
+                # outputs = pipe(
+                #     prompt=prompt,  # Pass the batch of prompts
+                #     image=control_image,  # Pass the batch of control images
+                #     num_inference_steps=config["Inference"]["num_inference_steps"],
+                #     guidance_scale=config["Inference"]["guidance_scale"]
+                # ).images[0]
+                
+                # #####
+                
                 inference_mode = config["General"].get("inference") or "pred"
                 image_name: str = test_mini_batch[f"{input_key}_path"][0].split("/")[-1]
                 
-                # Save generated image for FID
+                # Save generated image for FID (CYCLEGAN)
                 gen_img_name = image_name.replace('.csv', '.png')
                 plot_single_image(generated_dir, outputs["prediction"][0], gen_img_name)
                 # Save also to main save_dir for user
                 plot_single_image(save_dir, outputs["prediction"][0], inference_mode + "_" + image_name)
                 
-                # Save real image for FID if available
+
+                # # Save generated image for FID (CONTROLNET)
+                # gen_img_name = image_name.replace('.csv', '.png')
+                # gen_img_path = os.path.join(generated_dir, gen_img_name)
+                
+                # try:
+                #     # Save the generated image directly
+                #     outputs.save(gen_img_path)  # Assuming `outputs` is a PIL image
+                #     print(f"Generated image saved to: {gen_img_path}")
+                # except Exception as e:
+                #     print(f"Failed to save generated image: {e}")
+
+                # Save real image for FID if available 
                 if "real_B" in test_mini_batch:
                     real_img_name = image_name.replace('.csv', '.png')
                     real_img_path = os.path.join(real_dir, real_img_name)
                     save_image(test_mini_batch["real_B"][0], real_img_path)
+                    # print(f"Real image saved to: {real_img_path}")
                 
                 if config["Output"].get("save_comparisons"):
                     plot_sample(save_dir, test_mini_batch[input_key][0], outputs["prediction"][0], None, test_mini_batch[f"{input_key}_path"][0], suffix=f"{inference_mode}_{image_name}", full_size=True)
                 
+                
+                    # # Debugging: Check the shape and data type
+
+                    # print(f"Original real_B shape: {test_mini_batch['real_B'][0].shape}")
+                    # print(f"Original real_B data type: {test_mini_batch['real_B'][0].dtype}")
+                    # print(f"Original real_B min value: {test_mini_batch['real_B'][0].min()}")
+                    # print(f"Original real_B max value: {test_mini_batch['real_B'][0].max()}")
+                
+                    # try:
+                    #     # Convert the tensor to a NumPy array
+                    #     real_image = test_mini_batch["real_B"][0].numpy()  # Move to CPU and convert to NumPy
+                    #     real_image = np.squeeze(real_image)  # Remove singleton dimensions
+                    #     if real_image.ndim == 3:  # If it's a 3D array, reshape it to (H, W)
+                    #         real_image = real_image[0]  # Assuming the first channel is the image
+                    #     elif real_image.ndim == 1:  # If it's a flat array, reshape it
+                    #         real_image = real_image.reshape(512, 512)  # Assuming 512x512 image
+                
+                    #     # Scale to [0, 255] and convert to uint8
+                    #     real_image = (real_image * 255).clip(0, 255).astype(np.uint8)
+                        
+                    #     # Save the image
+                    #     # real_image_pil = Image.fromarray(real_image)
+                    #     # real_image_pil.save(real_img_path)
+
+                    #     real_img_name = image_name.replace('.csv', '.png')
+                    #     real_img_path = os.path.join(real_dir, real_img_name)
+                    #     save_image(test_mini_batch["real_B"][0], real_img_path)
+                    #     print(f"Real image saved to: {real_img_path}")
+                    # except Exception as e:
+                    #     print(f"Failed to save real image: {e}")
+                
+                # Advance the progress bar
                 progress.advance(task_id=0)
+                        
+                # # Save also to main save_dir for user
+                # plot_single_image(save_dir, outputs, inference_mode + "_" + image_name)
+
+                # # Save real image for FID if available
+                # if "real_B" in test_mini_batch:
+                #     real_img_name = image_name.replace('.csv', '.png')
+                #     real_img_path = os.path.join(real_dir, real_img_name)
+                #     save_image(test_mini_batch["real_B"][0], real_img_path)
+                
+                # if config["Output"].get("save_comparisons"):
+                #     plot_sample(save_dir, test_mini_batch[input_key][0], outputs["prediction"][0], None, test_mini_batch[f"{input_key}_path"][0], suffix=f"{inference_mode}_{image_name}", full_size=True)
+                
+                # progress.advance(task_id=0)
 
     # --- Compute FID ---
     print("Calculating FID between generated and real images...")

@@ -216,14 +216,19 @@ class Visualizer():
         s += f"\nTotal Trainable Params: {total_params}"
         return s
 
+    # def save_model_architecture(self, model: torch.nn.Module, inputs: dict[str, any]):
+        # input = None if "input" not in inputs else inputs["input"]
     def save_model_architecture(self, model: torch.nn.Module, input: torch.Tensor):
+        
         if input is not None:
             if self.save_to_tensorboard:
                 print("Warning: Larger memory consumption while saving to tensorboard. Set 'save_to_tensorboard=False' if you want to skip this.")
                 self.tb.add_graph(model, input.float())
             else:
+                # inputs_wo_input = {k: v for k, v in inputs.items() if k != "input"}
                 with torch.no_grad():
                     with torch.cuda.amp.autocast():
+                        # model.forward(input, **inputs_wo_input)
                         model.forward(input)
         else:
             print("No input given for test run. Saved architecture might change after first run!")

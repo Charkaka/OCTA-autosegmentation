@@ -68,7 +68,7 @@ def get_dataset(config: dict[str, dict], phase: str, batch_size=None, num_worker
             data[k] = np.resize(np.array(v), max_length).tolist()
         train_files = [dict(zip(data, t)) for t in zip(*data.values())]
         data_set = Dataset(train_files, transform=transform)
-    elif task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CYCLEGAN: #For GAN or cycleGAN training, we use the UnalignedZipDataset
+    elif task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CYCLEGAN or task == Task.GENERATION: #For GAN or cycleGAN training, we use the UnalignedZipDataset
         if phase == Phase.VALIDATION:
             max_length = max([len(l) for l in data.values()])
             for k,v in data.items():
@@ -80,6 +80,19 @@ def get_dataset(config: dict[str, dict], phase: str, batch_size=None, num_worker
             data_set = UnalignedZipDataset(data, transform, phase)
             
             print(f"Using UnalignedZipDataset for {phase} with {len(data_set)} samples.")
+
+    # elif task == Task.GENERATION:  # For generation tasks, we use a simple Dataset
+    #     if phase == Phase.TEST:
+    #         # For testing, we assume the dataset contains real images
+    #         try:
+    #             # Restructure the data to match the expected format for LoadImaged
+    #             print(f"Data being passed to Dataset: {data['real_A']}")
+    #             data_list = [{"real_A": path} for path in data["real_A"]]
+    #             data_set = Dataset(data_list, transform=transform)
+    #         except Exception as e:
+    #             print(f"Error in Dataset creation: {e}")
+    #             print(f"Data: {data}")
+    #             raise
     
     loader = DataLoader(data_set, batch_size=batch_size or config[phase].get("batch_size") or 1, shuffle=phase!=Phase.TEST, num_workers=ceil(cpu_count()/2) if num_workers is None else num_workers, pin_memory=torch.cuda.is_available())
     return loader
