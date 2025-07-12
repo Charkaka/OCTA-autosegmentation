@@ -300,14 +300,26 @@ class Visualizer():
             "Identity OCTA": idt_B,
             "Predicted Segmentation Map": real_B_seg
         }
-        images = {k: (v.squeeze().detach().float().clip(0,1).cpu().numpy() * 255).astype(np.uint8) for k,v in images.items() if v is not None}
+        # Ensure all tensors are properly processed into valid image shapes
+        images = {
+            k: (v.squeeze().detach().float().clip(0, 1).cpu().numpy() * 255).astype(np.uint8)
+            for k, v in images.items() if v is not None
+        }
+        images = {
+            k: (v if v.ndim == 2 else v[0])  # Ensure grayscale (2D) images
+            for k, v in images.items()
+        }
         div = (1 if full_size else 2)
         inches = get_fig_size(real_A)
-        fig, _ = plt.subplots(2, 3, figsize=(3*inches[1]/div, 2*inches[0]/div))
-        plt.title(f"A: {name_A}, B: {name_B}")
+        fig, axes = plt.subplots(2, 3, figsize=(3 * inches[1] / div, 2 * inches[0] / div))
+        plt.suptitle(f"A: {name_A}, B: {name_B}")
+        
         for i, (title, img) in enumerate(images.items()):
-            fig.axes[i].imshow(img, cmap='gray')
-            fig.axes[i].set_title(title)
+            ax = axes.flat[i]
+            ax.imshow(img, cmap='gray')
+            ax.set_title(title)
+            ax.axis('off')
+        
         path = os.path.join(self.save_dir, f'sample_{suffix}.png')
         plt.savefig(path, bbox_inches='tight')
         plt.close()
