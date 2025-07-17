@@ -107,8 +107,6 @@ class CycleGAN(BaseModelABC):
         inference_mode = getattr(self, "inference_mode", "netG_A")
         input = mini_batch["image"].to(device=device, non_blocking=True)
 
-        print("Inference mode:", inference_mode)
-
         if inference_mode == "netG_A":
             pred = self.netG_A(input)
             outputs: Output = { "prediction": [post_transformations["prediction"](i) for i in decollate_batch(pred[0:1,0:1])] }

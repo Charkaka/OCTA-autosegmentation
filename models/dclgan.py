@@ -31,6 +31,7 @@ class DCLGAN(BaseModelABC):
                 lambda_B: float,
                 lambda_idt: float,
                 pool_size: int,
+                nce_T: float,
                 nce_layers: str,
                 nce_idt:float,
                 lambda_NCE:float,
@@ -50,6 +51,7 @@ class DCLGAN(BaseModelABC):
         self.nce_layers = [int(i) for i in nce_layers.split(',')]
         self.lambda_NCE = lambda_NCE
         self.lambda_GAN = lambda_GAN
+        self.nce_T = nce_T
         self.nce_idt = nce_idt
         self.flip_equivariance = flip_equivariance
         self.num_patches = num_patches
@@ -96,7 +98,7 @@ class DCLGAN(BaseModelABC):
             self.loss_name_criterionNCE = config[Phase.TRAIN]["loss_criterionNCE"]
             self.criterionNCE = []
             for _ in self.nce_layers:
-                self.criterionNCE.append(get_loss_function_by_name(self.loss_name_criterionNCE, config))
+                self.criterionNCE.append(get_loss_function_by_name(self.loss_name_criterionNCE, config, nce_T=self.nce_T))
 
             # Initialize netF1 and netF2
             with torch.cuda.amp.autocast():

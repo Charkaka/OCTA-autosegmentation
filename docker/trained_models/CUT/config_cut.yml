@@ -151,7 +151,7 @@ Test:
     real_A:
       # files: /home/charmain/OCTA-autosegmentation/OCTA500/resized_segmented_images/**/*.png
       files: /home/charmain/OCTA-autosegmentation/clientDataFlattened/**/*.png
-     
+      split: /home/charmain/OCTA-autosegmentation/test.txt
     background:
       files: /home/charmain/OCTA-autosegmentation/OCTA500/background_images/**/*.png
   save_comparisons: false
@@ -174,8 +174,6 @@ Test:
     #   - real_A
     #   - real_B
     #   - background
-
-      allow_missing_keys: true
     
     - name: ScaleIntensityd
       keys:
@@ -212,8 +210,6 @@ Test:
       - 400
       - 400  # Include depth, height, and width
       mode: bilinear
-
-    
     - name: Rotate90d
       allow_missing_keys: true
       keys:

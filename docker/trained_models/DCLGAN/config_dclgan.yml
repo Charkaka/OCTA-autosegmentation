@@ -14,7 +14,6 @@ General:
       name: resnetGenerator9
       input_nc: 3
       output_nc: 3
-      
     netD_A_config: 
       name: patchGAN70x70
       input_nc: 3
@@ -30,20 +29,23 @@ General:
       use_mlp: True
       nc: 256
     lambda_idt: 1
+    
+    #Decrease lambda_A and lambda_B to allow the model to focus more on realism. -- Ensures the transformation preserves the structure of the input image.
     lambda_A: 10
     lambda_B: 10
     pool_size: 50
+    nce_T: 0.07
     nce_layers: '0,4,8,12,16'
     # For Nomal CUT:
     nce_idt: True
-    lambda_NCE: 2
+    lambda_NCE: 2 # Increase from 2, to improve feature matching --  Ensures features in the synthetic and realistic domains are alighned
     flip_equivariance: False
     # For Fast NEGCUT:
     # nce_idt: False
     # lambda_NCE: 10
     # flip_equivariance: False
-    lambda_GAN: 1
-    num_patches: 256
+    lambda_GAN: 1  #Increase to prioritise realism, increase from 1
+    num_patches: 512 #256
   seed: 675570 
 Train:
   data:
@@ -51,6 +53,7 @@ Train:
       # files: /home/linus/Datasets/OCTA/OCTA-500/processed/images/*.png
       # split: /home/linus/Datasets/OCTA/OCTA-500/processed/train_
       files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+      split: /home/charmain/OCTA-autosegmentation/OCTA500/train.txt
 
     real_A:
       # files: /home/linus/repos/OCTA-seg/datasets/vessel_graphs/*.csv
@@ -64,7 +67,7 @@ Train:
   save_interval: 50
   val_interval: 200
   batch_size: 4
-  lr: 0.0002
+  lr: 0.0001 # Reducee from 0.002, Decrease slightly for fine-tuning to avoid overshooting the optimal weights
   loss_criterionGAN: LSGANLoss
   loss_criterionNCE: PatchNCELoss
   loss_criterionIdt: L1Loss
@@ -178,6 +181,7 @@ Test:
       # files: /home/linus/Datasets/OCTA/OCTA-500/processed/images/*.png
       # split: /home/linus/Datasets/OCTA/OCTA-500/processed/val_
       files: /home/charmain/OCTA-autosegmentation/OCTA500/images/**/*.png
+      split: /home/charmain/OCTA-autosegmentation/OCTA500/test.txt
     real_A:
       # files: /home/linus/repos/OCTA-seg/datasets/vessel_graphs/*.csv
        files: /home/charmain/OCTA-autosegmentation/clientDataFlattened/**/*.png

@@ -146,9 +146,12 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
             assert os.path.isfile(args.model_path), f"Model checkpoint {args.model_path} does not exist!"
             print(f"Loading model weights from {args.model_path}")
             state_dict = torch.load(args.model_path, map_location=device)
-            # model.netG_A.load_state_dict(state_dict)
-            model.netG.load_state_dict(state_dict)  # Use netG instead of netG_A
 
+            if "netG_A" in state_dict:
+                model.netG_A.load_state_dict(state_dict["netG_A"])
+            if "netG" in state_dict:
+                model.netG.load_state_dict(state_dict["netG"])
+        
             
     
     #Use of StableDiffusionXLControlNetPipeline    
@@ -216,18 +219,6 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
                 #     num_inference_steps=config["Inference"]["num_inference_steps"],
                 #     guidance_scale=config["Inference"]["guidance_scale"]
                 # ).images[0]
-                
-                # #####
-                
-                inference_mode = config["General"].get("inference") or "pred"
-                image_name: str = test_mini_batch[f"{input_key}_path"][0].split("/")[-1]
-                
-                # Save generated image for FID (CYCLEGAN)
-                gen_img_name = image_name.replace('.csv', '.png')
-                plot_single_image(generated_dir, outputs["prediction"][0], gen_img_name)
-                # Save also to main save_dir for user
-                plot_single_image(save_dir, outputs["prediction"][0], inference_mode + "_" + image_name)
-                
 
                 # # Save generated image for FID (CONTROLNET)
                 # gen_img_name = image_name.replace('.csv', '.png')
@@ -239,13 +230,24 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
                 #     print(f"Generated image saved to: {gen_img_path}")
                 # except Exception as e:
                 #     print(f"Failed to save generated image: {e}")
-
+                # #####
+                
+                inference_mode = config["General"].get("inference") or "pred"
+                image_name: str = test_mini_batch[f"{input_key}_path"][0].split("/")[-1]
+                
+                # Save generated image for FID 
+                gen_img_name = image_name.replace('.csv', '.png')
+                plot_single_image(generated_dir, outputs["prediction"][0], gen_img_name)
+                # Save also to main save_dir for user
+                plot_single_image(save_dir, outputs["prediction"][0], inference_mode + "_" + image_name)
+                
                 # Save real image for FID if available 
                 if "real_B" in test_mini_batch:
                     real_img_name = image_name.replace('.csv', '.png')
                     real_img_path = os.path.join(real_dir, real_img_name)
                     save_image(test_mini_batch["real_B"][0], real_img_path)
                     # print(f"Real image saved to: {real_img_path}")
+                    
                 
                 if config["Output"].get("save_comparisons"):
                     plot_sample(save_dir, test_mini_batch[input_key][0], outputs["prediction"][0], None, test_mini_batch[f"{input_key}_path"][0], suffix=f"{inference_mode}_{image_name}", full_size=True)
@@ -281,23 +283,8 @@ with Live(group, console=Console(force_terminal=True), refresh_per_second=10):
                     # except Exception as e:
                     #     print(f"Failed to save real image: {e}")
                 
-                # Advance the progress bar
                 progress.advance(task_id=0)
-                        
-                # # Save also to main save_dir for user
-                # plot_single_image(save_dir, outputs, inference_mode + "_" + image_name)
-
-                # # Save real image for FID if available
-                # if "real_B" in test_mini_batch:
-                #     real_img_name = image_name.replace('.csv', '.png')
-                #     real_img_path = os.path.join(real_dir, real_img_name)
-                #     save_image(test_mini_batch["real_B"][0], real_img_path)
                 
-                # if config["Output"].get("save_comparisons"):
-                #     plot_sample(save_dir, test_mini_batch[input_key][0], outputs["prediction"][0], None, test_mini_batch[f"{input_key}_path"][0], suffix=f"{inference_mode}_{image_name}", full_size=True)
-                
-                # progress.advance(task_id=0)
-
     # --- Compute FID ---
     print("Calculating FID between generated and real images...")
     try:

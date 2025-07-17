@@ -326,7 +326,8 @@ def get_loss_function_by_name(
         name: str,
         config: dict[str, dict],
         scaler: GradScaler=None,
-        loss=None
+        loss=None,
+        nce_T: float = 0.07
     ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     if "Data" in config:
         weight = 1/torch.tensor(config["Data"]["class_balance"], device=config["General"].get("device") or "cpu")

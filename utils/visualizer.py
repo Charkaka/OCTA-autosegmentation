@@ -14,6 +14,7 @@ from PIL import Image
 from utils.enums import Phase, Task
 from rich.console import Group, RenderableType
 import nibabel as nib
+from  diffusers import ControlNetModel
 
 class Visualizer():
     """
@@ -217,9 +218,27 @@ class Visualizer():
         return s
 
     # def save_model_architecture(self, model: torch.nn.Module, inputs: dict[str, any]):
-        # input = None if "input" not in inputs else inputs["input"]
-    def save_model_architecture(self, model: torch.nn.Module, input: torch.Tensor):
-        
+    #     input = None if "input" not in inputs else inputs["input"]
+    def save_model_architecture(self, model: torch.nn.Module, input):
+        if isinstance(model, ControlNetModel):
+            sample = input["sample"]
+            timestep = input["timestep"]
+            encoder_hidden_states = input["encoder_hidden_states"]
+            controlnet_cond = input["controlnet_cond"]
+            if sample is not None:
+                if self.save_to_tensorboard:
+                    print("Warning: Larger memory consumption while saving to tensorboard. Set 'save_to_tensorboard=False' if you want to skip this.")
+                    self.tb.add_graph(model, sample.float())
+                else:
+                    model.forward(
+                        sample=sample,
+                        timestep=timestep,
+                        encoder_hidden_states=encoder_hidden_states,
+                        controlnet_cond=controlnet_cond,
+                        conditioning_scale=1.0
+                    )
+                    return
+
         if input is not None:
             if self.save_to_tensorboard:
                 print("Warning: Larger memory consumption while saving to tensorboard. Set 'save_to_tensorboard=False' if you want to skip this.")

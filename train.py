@@ -24,7 +24,8 @@ from utils.visualizer import Visualizer, DynamicDisplay
 from models.base_model_abc import BaseModelABC
 from utils.enums import Phase
 
-from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel
+from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL
+from torch.nn.functional import interpolate
 
 def train(args: argparse.Namespace, config: dict[str, dict]):
     global group
@@ -63,18 +64,87 @@ def train(args: argparse.Namespace, config: dict[str, dict]):
         init_mini_batch["image"] = init_mini_batch[input_key]
 
         # Debugging shapes of real_A and real_B
-        print(f"Shape of real_A: {init_mini_batch['real_A'].shape}")
-        print(f"Shape of real_B: {init_mini_batch['real_B'].shape}")
+        # print(f"Shape of real_A: {init_mini_batch['real_A'].shape}")
+        # print(f"Shape of real_B: {init_mini_batch['real_B'].shape}")
         print("done loading training data.")
 
     with DynamicDisplay(group, Spinner("bouncingBall", text="Initializing model...")):
         # Old code for model initialization
-        model: BaseModelABC = define_model(deepcopy(config), phase=Phase.TRAIN)
-        model.initialize_model_and_optimizer(init_mini_batch, init_weights, config, args, scaler, phase=Phase.TRAIN)
+        if not ("is_controlnet" in config["General"] and config["General"]["is_controlnet"]):
+            model: BaseModelABC = define_model(deepcopy(config), phase=Phase.TRAIN)
+            model.initialize_model_and_optimizer(init_mini_batch, init_weights, config, args, scaler, phase=Phase.TRAIN)
+            print(init_mini_batch["image"].shape)
+            input = init_mini_batch["image"].to(device, non_blocking=True) if init_mini_batch else None
+        else:
+            vae = AutoencoderKL.from_pretrained(
+                "madebyollin/sdxl-vae-fp16-fix",
+                torch_dtype=torch.float16,
+            )
+            model = ControlNetModel.from_pretrained(
+                config["Models"]["model_path"],
+                torch_dtype=torch.float16,
+                addition_embed_type=None,
+                in_channels=config["Models"]["input_nc"],  # Ensure this matches the expected number of input channels
+                # conditioning_channels=config["Models"]["output_nc"],
+                low_cpu_mem_usage=False,  # Ensure full memory usage
+                ignore_mismatched_sizes=True  # Ignore mismatched sizes for conv_in
+            ).to(device)
+            pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+                "/home/charmain/OCTA-autosegmentation/models/pretrained/controlnet/controlnet-sdxl-canny/",
+                controlnet=model,
+                vae=vae,
+                torch_dtype=torch.float16,
+            )
+            pipe.to(device)
+            text_inputs = pipe.tokenizer(
+                config["Inference"]["prompt"],  # List of prompts
+                padding="max_length",
+                max_length=pipe.tokenizer.model_max_length,
+                truncation=True,
+                return_tensors="pt"
+            ).to(device)
+            encoder_hidden_states = pipe.text_encoder(text_inputs.input_ids)[0]
+            
+            
+            input = {
+                "sample": init_mini_batch["image"].to(device, non_blocking=True) if init_mini_batch else None,
+                "timestep": torch.tensor([randint(0, 1000)], device=device),
+                "encoder_hidden_states": encoder_hidden_states,
+                "controlnet_cond": init_mini_batch["real_B"].to(device)
+            }
 
-        print(init_mini_batch["image"].shape)
-        visualizer.save_model_architecture(model, init_mini_batch["image"].to(device, non_blocking=True) if init_mini_batch else None)
+        visualizer.save_model_architecture(model, input)
         print("done initializing model.")
+            # Optional: Freeze layers for fine-tuning specific parts of the model
+            # for param in controlnet.parameters():
+            #     param.requires_grad = False
+            # for param in controlnet.control_blocks[-1].parameters():
+            #     param.requires_grad = True
+
+            # for param in controlnet.parameters():
+            #     param.requires_grad = False
+
+            # print(init_mini_batch["image"].shape)
+            # text_inputs = pipe.tokenizer(
+            #     config["Inference"]["prompt"],  # List of prompts
+            #     padding="max_length",
+            #     max_length=pipe.tokenizer.model_max_length,
+            #     truncation=True,
+            #     return_tensors="pt"
+            # ).to(device)
+
+            # inputs = {
+            #     "input": init_mini_batch["image"].to(device, non_blocking=True) if init_mini_batch else None,
+            #     "timestep": torch.tensor([randint(0, 1000)], device=device),
+            #     "encoder_hidden_states": pipe.text_encoder(text_inputs.input_ids)[0],
+            #     "controlnet_cond": init_mini_batch["real_A"].to(device),
+            #     "added_cond_kwargs": {
+            #         "text_embeds": pipe.text_encoder(text_inputs.input_ids)[0]}
+                
+            # }
+            # visualizer.save_model_architecture(controlnet, inputs)
+            # print("done initializing model.")
+
 
         # # New code for loading pretrained ControlNet model
         # controlnet = ControlNetModel.from_pretrained(config["Models"]["model_path"]).to(device)
